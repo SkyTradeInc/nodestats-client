@@ -7,9 +7,9 @@ const geoip   = require('geoip-lite');
 class NodeStats {
 
   constructor() {
-    this.io = socket('http://localhost:9647')
-    this.WEB3_HTTP_HOST         = 'http://toorak03.ledgerium.io:8545/'
-    this.WEB3_WS_HOST           = 'ws://toorak03.ledgerium.io:9000'
+    this.io                     = socket('http://localhost:9647')
+    this.WEB3_HTTP_HOST         = 'http://toorak04.ledgerium.io:8545/'
+    this.WEB3_WS_HOST           = 'ws://toorak04.ledgerium.io:9000'
     this.WEB3_HTTP              = new web3(new web3.providers.HttpProvider(this.WEB3_HTTP_HOST))
     this.WEB3_WS                = new web3(new web3.providers.WebsocketProvider(this.WEB3_WS_HOST))
     this.id                     = ''
@@ -20,6 +20,7 @@ class NodeStats {
     this.peers                  = 0
     this.lastBlockNumber        = 0
     this.lastBlockTransactions  = 0
+    this.lastBlockMiner         = '0x0000000000000000000000000000000000000000'
     this.lastRecievedBlock      = Date.now()
     this.totalDifficulty        = 0
     this.propagationTime        = 0
@@ -65,6 +66,7 @@ class NodeStats {
       peers: this.peers,
       lastBlockNumber: this.lastBlockNumber,
       lastBlockTransactions: this.lastBlockTransactions,
+      lastBlockMiner: this.lastBlockMiner,
       lastRecievedBlock: this.lastRecievedBlock,
       totalDifficulty: this.totalDifficulty,
       propagationTime: this.propagationTime,
@@ -72,7 +74,6 @@ class NodeStats {
       geo: this.geo,
       timestamp: Date.now()
     }
-    // console.log(payload)
     this.io.emit('nodeStats', payload)
   }
 
@@ -101,6 +102,7 @@ class NodeStats {
       this.totalDifficulty = block.totalDifficulty
       this.lastBlockNumber = block.number
       this.lastBlockTransactions = block.transactions.length
+      this.lastBlockMiner = block.miner
       this.sendStats()
     })
   }
