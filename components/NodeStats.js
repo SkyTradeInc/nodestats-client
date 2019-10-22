@@ -5,7 +5,7 @@ const socket = require('socket.io-client')
 class NodeStats {
 
   constructor() {
-    this.io = socket('http://localhost:9647')
+    this.io                     = socket('http://toorak.ledgerium.io', {path: "/blockexplorersvc/socket.io"})
     this.WEB3_HTTP_HOST         = 'http://toorak01.ledgerium.io:8545/'
     this.WEB3_WS_HOST           = 'ws://toorak01.ledgerium.io:9000'
     this.WEB3_HTTP              = new web3(new web3.providers.HttpProvider(this.WEB3_HTTP_HOST))
@@ -39,6 +39,7 @@ class NodeStats {
     this.io.on('checkAlive', ()=>{
       this.io.emit('isAlive', self.id)
     })
+
   }
 
   sendStats() {
