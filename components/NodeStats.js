@@ -1,6 +1,8 @@
-const web3 = require('web3')
-const rpc = require('request')
-const socket = require('socket.io-client')
+const web3    = require('web3')
+const rpc     = require('request')
+const socket  = require('socket.io-client')
+const getIP   = require('external-ip')();
+const geoip   = require('geoip-lite');
 
 class NodeStats {
 
@@ -18,10 +20,12 @@ class NodeStats {
     this.peers                  = 0
     this.lastBlockNumber        = 0
     this.lastBlockTransactions  = 0
+    this.lastBlockMiner         = '0x0000000000000000000000000000000000000000'
     this.lastRecievedBlock      = Date.now()
     this.totalDifficulty        = 0
     this.propagationTime        = 0
-    this.geoip                  = {lat: 0, long: 0}
+    this.ipAddress              = '127.0.0.1'
+    this.geo                    = {}
     this.init()
   }
 
@@ -29,9 +33,21 @@ class NodeStats {
       this.subscribeNewBlockHeaders()
       this.getNodeInfo()
       this.getPeers()
+      this.getExternalIP()
       this.checkIsMining()
       this.startInterval()
       this.listen()
+  }
+
+  getExternalIP() {
+    const self = this
+    getIP((err, ip) => {
+    if (err) {
+        throw err;
+    }
+      self.ip  = ip
+      self.geo = geoip.lookup(ip)
+    })
   }
 
   listen() {
@@ -51,18 +67,19 @@ class NodeStats {
       peers: this.peers,
       lastBlockNumber: this.lastBlockNumber,
       lastBlockTransactions: this.lastBlockTransactions,
+      lastBlockMiner: this.lastBlockMiner,
       lastRecievedBlock: this.lastRecievedBlock,
       totalDifficulty: this.totalDifficulty,
       propagationTime: this.propagationTime,
+      ip: this.ip,
+      geo: this.geo,
       timestamp: Date.now()
     }
-    // console.log(payload)
     this.io.emit('nodeStats', payload)
   }
 
   startInterval() {
     setInterval(()=>{
-      this.getNodeInfo()
       this.getPeers()
       this.checkIsMining()
     },10000)
@@ -86,6 +103,7 @@ class NodeStats {
       this.totalDifficulty = block.totalDifficulty
       this.lastBlockNumber = block.number
       this.lastBlockTransactions = block.transactions.length
+      this.lastBlockMiner = block.miner
       this.sendStats()
     })
   }
@@ -112,7 +130,6 @@ class NodeStats {
         },
       }, (error, result) => {
           if(error) return reject(error);
-          console.log(result.body.result)
           this.id = result.body.result.id
           this.fullName = result.body.result.name
           this.type = result.body.result.name.split('/')[0]
