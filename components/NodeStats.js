@@ -1,15 +1,17 @@
-const web3    = require('web3')
-const rpc     = require('request')
-const socket  = require('socket.io-client')
+const web3    = require('web3');
+const rpc     = require('request');
+const socket  = require('socket.io-client');
 const getIP   = require('external-ip')();
 const geoip   = require('geoip-lite');
+const isIp = require('is-ip');
+const chalk   = require('chalk');
 
 class NodeStats {
 
-  constructor() {
-    this.io                     = socket('http://toorak.ledgerium.io', {path: "/blockexplorersvc/socket.io"})
-    this.WEB3_HTTP_HOST         = 'http://toorak01.ledgerium.io:8545/'
-    this.WEB3_WS_HOST           = 'ws://toorak01.ledgerium.io:9000'
+  constructor(http, ws, i, ip) {
+    this.io                     = socket('https://toorak.ledgerium.io', {path: "/blockexplorersvc/socket.io"})
+    this.WEB3_HTTP_HOST         = http
+    this.WEB3_WS_HOST           = ws
     this.WEB3_HTTP              = new web3(new web3.providers.HttpProvider(this.WEB3_HTTP_HOST))
     this.WEB3_WS                = new web3(new web3.providers.WebsocketProvider(this.WEB3_WS_HOST))
     this.id                     = ''
@@ -24,31 +26,66 @@ class NodeStats {
     this.lastRecievedBlock      = Date.now()
     this.totalDifficulty        = 0
     this.propagationTime        = 0
-    this.ipAddress              = '127.0.0.1'
+    this.ipAddress              = isIp(ip) ? ip : false
     this.geo                    = {}
     this.init()
   }
 
   init() {
-      this.subscribeNewBlockHeaders()
-      this.getNodeInfo()
-      this.getPeers()
-      this.getExternalIP()
-      this.checkIsMining()
-      this.startInterval()
-      this.listen()
+      this.checkConnected()
+        .then(success => {
+          console.log(`${this.WEB3_HTTP_HOST} ${chalk.bgGreen('Connected')}`)
+          this.subscribeNewBlockHeaders()
+          this.getNodeInfo()
+          this.getPeers()
+          this.getExternalIP()
+          this.checkIsMining()
+          this.startInterval()
+          this.listen()
+        })
+        .catch(error =>{
+          console.log(`${this.WEB3_HTTP_HOST} ${chalk.bgRed('Disconnected')}`)
+        })
+
+  }
+
+  checkConnected() {
+    return new Promise((resolve, reject) => {
+      this.WEB3_HTTP.eth.net.isListening()
+        .then(connected => {
+          resolve(true)
+        })
+        .catch(error => {
+          reject(false)
+        })
+    })
+
   }
 
   getExternalIP() {
     const self = this
-    getIP((err, ip) => {
-    if (err) {
-        throw err;
+    if(this.ipAddress) {
+      self.geo = geoip.lookup(self.ipAddress)
+    } else {
+      getIP((err, ip) => {
+      if (err) {
+          throw err;
+      }
+        self.geo = geoip.lookup(ip)
+      })
     }
-      self.ip  = ip
-      self.geo = geoip.lookup(ip)
-    })
   }
+
+  // getExternalIP() {
+  //   const self = this
+  //   // getIP((err, ip) => {
+  //   // if (err) {
+  //   //     throw err;
+  //   // }
+  //   //   self.ip  = ip
+  //   //   self.geo = geoip.lookup(self.ipAddress)
+  //   // // })
+  // }
 
   listen() {
     const self = this
